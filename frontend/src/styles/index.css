@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #FFF8FC;
+    color: #302938;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+/* Glassmorphism Surface */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(238, 217, 232, 0.7);
+  box-shadow: 0 8px 32px 0 rgba(156, 100, 143, 0.06);
+}
+
+.glass-panel-subtle {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(244, 220, 235, 0.5);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(238, 217, 232, 0.8);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(156, 100, 143, 0.12);
+  border-color: rgba(156, 100, 143, 0.4);
+}
+
+/* Dreamy Gradient Accents */
+.ari-gradient {
+  background: linear-gradient(135deg, #F4DCEB 0%, #E8DDF8 50%, #FFF8FC 100%);
+}
+
+.ari-button-gradient {
+  background: linear-gradient(135deg, #9C648F 0%, #79476C 100%);
+  color: #FFFFFF;
+}
+
+.ari-button-gradient:hover {
+  background: linear-gradient(135deg, #A86D9B 0%, #865178 100%);
+  box-shadow: 0 6px 20px rgba(156, 100, 143, 0.3);
+}
+
+.ari-pill {
+  background: linear-gradient(135deg, rgba(244, 220, 235, 0.6) 0%, rgba(232, 221, 248, 0.6) 100%);
+  border: 1px solid rgba(156, 100, 143, 0.2);
+}
+
+/* Custom delicate scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E8DDF8;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #DDA7C5;
+}
