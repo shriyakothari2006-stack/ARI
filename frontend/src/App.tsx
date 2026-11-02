@@ -3,11 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { GeminiHealth } from './types';
 import { api } from './services/api';
 import { Navbar } from './components/Navbar';
+
 import { ChatDashboard } from './pages/ChatDashboard';
 import { LandingPage } from './pages/LandingPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
+import { AboutPage } from './pages/AboutPage';
 
-type Page = 'home' | 'chat' | 'settings';
+type Page = 'home' | 'chat' | 'settings' | 'knowledge-base' | 'about';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -35,6 +38,7 @@ const App: React.FC = () => {
 
   const navigateTo = (page: string) => {
     setCurrentPage(page as Page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -48,21 +52,29 @@ const App: React.FC = () => {
 
       <main>
         {currentPage === 'home' && (
-  <LandingPage
-    onGetStarted={() => navigateTo('chat')}
-    onExploreKB={() => navigateTo('chat')}
-  />
-)}
+          <LandingPage
+            onGetStarted={() => navigateTo('chat')}
+            onExploreKB={() => navigateTo('knowledge-base')}
+          />
+        )}
 
-{currentPage === 'chat' && (
- <ChatDashboard
-  geminiHealth={geminiHealth}
-  onNavigate={navigateTo}
-/>
-)}
+        {currentPage === 'chat' && (
+          <ChatDashboard
+            geminiHealth={geminiHealth}
+            onNavigate={navigateTo}
+          />
+        )}
+
+        {currentPage === 'knowledge-base' && (
+          <KnowledgeBasePage />
+        )}
 
         {currentPage === 'settings' && (
           <SettingsPage onRefreshHealth={fetchGeminiHealth} />
+        )}
+
+        {currentPage === 'about' && (
+          <AboutPage />
         )}
       </main>
     </div>
