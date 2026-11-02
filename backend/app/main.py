@@ -46,12 +46,13 @@ app = FastAPI(
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=list(set(
+        settings.ALLOWED_ORIGINS + [settings.FRONTEND_ORIGIN]
+    )),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # Global Exception Handler
 @app.exception_handler(Exception)
