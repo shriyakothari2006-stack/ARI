@@ -1,81 +1,129 @@
-"""Multilingual embedding service using SentenceTransformers (intfloat/multilingual-e5-base)."""
-import time
-from typing import List, Optional
+
+"""Google Gemini hosted multilingual embedding service for ARI."""
+
+import threading
+from typing import List
+
+from google import genai
+from google.genai import types
+
 from app.core.config import settings
 from app.core.logging import logger
 
-_model_instance = None
-_model_loading = False
+
+_client = None
+_client_lock = threading.Lock()
+
+
+def get_client():
+    """Create one shared Gemini API client."""
+    global _client
+
+    if _client is None:
+        with _client_lock:
+            if _client is None:
+                if not settings.is_gemini_configured:
+                    raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+                _client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    return _client
 
 
 class MultilingualEmbeddings:
-    def __init__(self, model_name: str = settings.EMBEDDING_MODEL):
-        self.model_name = model_name
-        self._dimension: Optional[int] = None
+    def __init__(self):
+        self.model_name = settings.EMBEDDING_MODEL
+        self.dimension = settings.EMBEDDING_DIMENSION
+        self.batch_size = settings.EMBEDDING_BATCH_SIZE
 
-    def _get_model(self):
-        global _model_instance, _model_loading
-        if _model_instance is None:
-            _model_loading = True
-            logger.info("Loading multilingual embedding model: %s...", self.model_name)
-            from sentence_transformers import SentenceTransformer
-            _model_instance = SentenceTransformer(self.model_name)
-            _model_loading = False
-            logger.info("Multilingual embedding model loaded successfully.")
-        return _model_instance
+    def _embed_batch(self, texts: List[str], task_type: str):
+        client = get_client()
 
-    @property
-    def dimension(self) -> int:
-        if self._dimension is None:
-            model = self._get_model()
-            self._dimension = model.get_sentence_embedding_dimension()
-        return self._dimension
+        response = client.models.embed_content(
+            model=self.model_name,
+            contents=texts,
+            config=types.EmbedContentConfig(
+                task_type=task_type,
+                output_dimensionality=self.dimension,
+            ),
+        )
+
+        if not response.embeddings:
+            raise RuntimeError("Gemini returned no embeddings.")
+
+        vectors = []
+
+        for item in response.embeddings:
+            if not item.values:
+                raise RuntimeError("Gemini returned an empty embedding.")
+
+            vector = [float(value) for value in item.values]
+
+            if len(vector) != self.dimension:
+                raise RuntimeError(
+                    f"Expected {self.dimension} dimensions, "
+                    f"received {len(vector)}."
+                )
+
+            # Normalize vectors for cosine similarity.
+            norm = sum(value * value for value in vector) ** 0.5
+
+            if norm == 0:
+                raise RuntimeError("Gemini returned a zero-length vector.")
+
+            vectors.append([value / norm for value in vector])
+
+        return vectors
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Embeds document texts prefixed with 'passage: ' and L2-normalized."""
-        model = self._get_model()
-        prefixed = [f"passage: {t.strip()}" for t in texts]
-        embeddings = model.encode(prefixed, normalize_embeddings=True, show_progress_bar=False)
-        return embeddings.tolist()
+        """Embed document chunks for retrieval."""
+
+        if not texts:
+            return []
+
+        all_vectors = []
+
+        for start in range(0, len(texts), self.batch_size):
+            batch = texts[start:start + self.batch_size]
+
+            vectors = self._embed_batch(
+                batch,
+                task_type="RETRIEVAL_DOCUMENT",
+            )
+
+            all_vectors.extend(vectors)
+
+        logger.info("Generated %d document embeddings.", len(all_vectors))
+        return all_vectors
 
     def embed_query(self, query: str) -> List[float]:
-        """Embeds a single query string prefixed with 'query: ' and L2-normalized."""
-        model = self._get_model()
-        prefixed = f"query: {query.strip()}"
-        embedding = model.encode(prefixed, normalize_embeddings=True, show_progress_bar=False)
-        return embedding.tolist()
+        """Embed a user search query."""
+
+        if not query or not query.strip():
+            raise ValueError("Search query cannot be empty.")
+
+        vectors = self._embed_batch(
+            [query.strip()],
+            task_type="RETRIEVAL_QUERY",
+        )
+
+        return vectors[0]
 
     def check_health(self) -> dict:
-        global _model_instance, _model_loading
-        if _model_loading:
-            return {
-                "status": "loading",
-                "model_name": self.model_name,
-                "dimension": None,
-                "message": "Model is currently being downloaded/loaded.",
-            }
-        try:
-            # Check if model can be initialized or is already loaded
-            if _model_instance is None:
-                return {
-                    "status": "ready (lazy-loaded)",
-                    "model_name": self.model_name,
-                    "dimension": 768,  # Standard multilingual-e5-base dimension
-                    "message": "Model will be initialized on first document ingestion or retrieval.",
-                }
-            return {
-                "status": "ready",
-                "model_name": self.model_name,
-                "dimension": self.dimension,
-                "message": "Model is loaded and ready for multilingual semantic vector calculations.",
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "model_name": self.model_name,
-                "dimension": None,
-                "message": f"Failed to initialize embedding model: {str(e)}",
-            }
+        """Check configuration without making an API request."""
+
+        configured = settings.is_gemini_configured
+
+        return {
+            "status": "ready" if configured else "error",
+            "model_name": self.model_name,
+            "dimension": self.dimension,
+            "message": (
+                "Gemini hosted embeddings are configured."
+                if configured
+                else "GEMINI_API_KEY is missing or invalid."
+            ),
+        }
 
 
 embedding_service = MultilingualEmbeddings()
