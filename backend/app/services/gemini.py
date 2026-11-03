@@ -178,31 +178,60 @@ class GeminiService:
                     "Gemini returned an empty response."
                 )
 
+            
             except errors.APIError as exc:
 
                 status_code = getattr(exc, "code", None)
+                error_message = str(exc)
+                error_lower = error_message.lower()
 
                 logger.warning(
                     "Gemini API error %s on attempt %d: %s",
                     status_code,
                     attempt + 1,
-                    str(exc),
+                    error_message,
                 )
 
+                # Daily quota exhaustion cannot be fixed by retrying.
+                quota_exhausted = (
+                    status_code == 429
+                    and (
+                        "per day" in error_lower
+                        or "daily quota" in error_lower
+                        or "requestsperday" in error_lower
+                        or "limit exceeded" in error_lower
+                    )
+                )
+
+                if quota_exhausted:
+                    logger.error(
+                        "Gemini daily quota exhausted. "
+                        "Stopping retries immediately."
+                    )
+                    raise RuntimeError(
+                        "ARI's Gemini API daily quota has been "
+                        "exhausted. Please check your Gemini API "
+                        "usage and billing, or wait for the quota "
+                        "to reset."
+                    ) from exc
+
+                # Retry temporary errors only.
                 retryable = status_code in (
                     429, 500, 502, 503, 504
                 )
 
                 if not retryable or attempt == max_retries - 1:
                     raise RuntimeError(
-                        f"Gemini API request failed: {str(exc)}"
+                        f"Gemini API request failed: {error_message}"
                     ) from exc
 
                 wait_time = 2 ** attempt
+
                 logger.info(
                     "Retrying Gemini request in %d seconds.",
                     wait_time,
                 )
+
                 time.sleep(wait_time)
 
         raise RuntimeError(

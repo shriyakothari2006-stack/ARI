@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.security import build_safe_rag_prompt
-from app.services.grok_service import gemini_service, ARI_SYSTEM_INSTRUCTIONS
+from app.services.gemini import gemini_service, ARI_SYSTEM_INSTRUCTIONS
 from app.services.language_service import language_service
 from app.rag.vector_store import vector_store
 from app.models.schemas import DocumentCitation

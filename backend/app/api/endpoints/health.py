@@ -11,7 +11,7 @@ from app.models.schemas import (
     EmbeddingsHealthResponse,
     VectorDBHealthResponse,
 )
-from app.services.grok_service import gemini_service
+from app.services.gemini import gemini_service
 from app.rag.embeddings import embedding_service
 from app.rag.vector_store import vector_store
 
